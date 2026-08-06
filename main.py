@@ -5,12 +5,12 @@ import telebot
 from telebot import types
 from groq import Groq
 
-# --- ТОКЕНЫ И КЛЮЧИ ---
+# --- НАСТРОЙКА КЛЮЧЕЙ И КЛИЕНТОВ ---
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "8572244100:AAHmOgxdaek-OzqeNnxPRGQp7dnjO4mn3DQ")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "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")
 
 bot = telebot.TeleBot(BOT_TOKEN)
-groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
+groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY and "ТВОЙ" not in GROQ_API_KEY else None
 
 SYSTEM_PROMPT = (
     "Ты Руся — ровный, четкий, позитивный пацан. Разговариваешь на простом пацанском языке (свояк, бро, братан), "
@@ -66,7 +66,7 @@ def handle_vibe(call):
 def handle_message(message):
     chat_id = message.chat.id
     if not groq_client:
-        bot.reply_to(message, "Ошибка: Не задан GROQ_API_KEY!")
+        bot.reply_to(message, "Ошибка: Не задан GROQ_API_KEY в коде!")
         return
     try:
         bot.send_chat_action(chat_id, 'typing')
@@ -90,7 +90,7 @@ def handle_message(message):
         print(f"Error: {e}")
         bot.reply_to(message, "Ой, братан, что-то пошло не так. Спроси еще раз!")
 
-# --- ЗАПУСК ВЕБ-СЕРВЕРА (МГНОВЕННО ОТКРЫВАЕТ ПОРТ) ---
+# --- ВЕБ-СЕРВЕР (ФИКС ДЛЯ FREE WEB SERVICE) ---
 class HealthCheck(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -98,16 +98,17 @@ class HealthCheck(BaseHTTPRequestHandler):
         self.wfile.write(b"OK")
 
 def run_server():
+    # Render передает PORT=10000. Если нет — берем 10000 по умолчанию
     port = int(os.environ.get("PORT", 10000))
     server = HTTPServer(('0.0.0.0', port), HealthCheck)
-    print(f"Сервер открыт на порту {port}")
+    print(f"Сервер слушает порт {port}...")
     server.serve_forever()
 
 if __name__ == '__main__':
-    # 1. Сначала запускаем веб-сервер
+    # Сначала открываем порт для Render!
     threading.Thread(target=run_server, daemon=True).start()
     
-    # 2. Очищаем прошлые сессии Telegram
+    # Очищаем зависшие подключения
     try:
         bot.remove_webhook()
     except:
