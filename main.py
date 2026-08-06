@@ -88,7 +88,7 @@ def handle_message(message):
         bot.reply_to(message, ans, reply_markup=get_main_keyboard())
     except Exception as e:
         print(f"Error: {e}")
-        bot.reply_to(message, "Ой, братан, что-то пошло не так. Спроси еще раз!")
+        bot.reply_to(message, f"Ошибка от Groq API:\n`{e}`", parse_mode="Markdown")
 
 # --- ВЕБ-СЕРВЕР (ФИКС ДЛЯ FREE WEB SERVICE) ---
 class HealthCheck(BaseHTTPRequestHandler):
