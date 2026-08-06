@@ -79,7 +79,7 @@ def handle_message(message):
             user_histories[chat_id] = user_histories[chat_id][-4:]
 
         res = groq_client.chat.completions.create(
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
             messages=[{"role": "system", "content": prompt}] + user_histories[chat_id],
             max_tokens=600
         )
