@@ -31,22 +31,21 @@ def check_subscription(user_id):
         return False
     except Exception as e:
         print(f"Ошибка проверки подписки: {e}")
-        # Если бот еще не админ в канале, не блочим пользователей
         return True
 
 def send_sub_request(chat_id):
-    """Отправляет четкое сообщение с прямой ссылкой на канал"""
+    """Отправляет сообщение с просьбой подписаться без ошибок форматирования"""
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("📢 Подписаться на Руся AI", url="https://t.me/rusya_ai"))
     markup.add(types.InlineKeyboardButton("✅ Я подписался!", callback_data="check_sub"))
     
     text = (
-        "👋 **Здорово, свояк!**\n\n"
+        "👋 Здорово, свояк!\n\n"
         "Чтобы базарить со мной, надо сначала подписаться на наш официальный канал:\n"
-        "👉 https://t.me/rusya_ai\n\n"
-        "Подпишись и жми кнопку **«Я подписался!»** ниже 👇"
+        "https://t.me/rusya_ai\n\n"
+        "Подпишись и жми кнопку «Я подписался!» ниже 👇"
     )
-    bot.send_message(chat_id, text, reply_markup=markup, parse_mode="Markdown")
+    bot.send_message(chat_id, text, reply_markup=markup)
 
 def get_main_keyboard():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -71,7 +70,7 @@ def check_sub_callback(call):
         bot.answer_callback_query(call.id, "Красава, подписка есть! 🔥")
         bot.send_message(chat_id, "Отлично, подписка зачтена! Чем помочь, бро?", reply_markup=get_main_keyboard())
     else:
-        bot.answer_callback_query(call.id, "❌ Ты еще не подписался на https://t.me/rusya_ai !", show_alert=True)
+        bot.answer_callback_query(call.id, "❌ Ты еще не подписался на канал!", show_alert=True)
 
 @bot.message_handler(func=lambda message: message.text == "🧹 Очистить память")
 def clear_memory(message):
