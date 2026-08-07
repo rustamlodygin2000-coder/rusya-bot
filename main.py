@@ -432,10 +432,8 @@ def handle_message(message):
 
     except Exception as e:
         print(f"Ошибка от Groq: {e}")
-        bot.reply_to(
-            message,
-            "Бро, что-то со связью... Попробуй еще раз через пару секунд!",
-        )
+        bot.reply_to(message, "Бро, что-то со связью... Попробуй еще раз через пару секунд!")
+
 
 
 # --- СЕРВЕР ДЛЯ РАЗДАЧИ MINI APP И PING ---
