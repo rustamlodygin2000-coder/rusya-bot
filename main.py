@@ -16,7 +16,6 @@ GROQ_API_KEY = os.environ.get(
 )
 
 CHANNEL_USERNAME = "@rusya_ai"
-# URL твоего приложения на Render
 WEBAPP_URL = "https://rusya-bot.onrender.com"
 
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -64,11 +63,9 @@ def send_sub_request(chat_id):
     bot.send_message(chat_id, text, reply_markup=markup)
 
 
-# --- ГЛАВНАЯ КЛАВИАТУРА МЕНЮ (С КНОПКОЙ MINI APP) ---
 def get_main_keyboard():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
-    # Кнопка открытия Mini App прямо в Telegram!
     app_button = types.KeyboardButton(
         "📱 Открыть Руся App 🎮", web_app=types.WebAppInfo(url=WEBAPP_URL)
     )
@@ -104,7 +101,6 @@ def send_welcome(message):
     )
 
 
-# Прием данных из Mini App при закрытии
 @bot.message_handler(content_types=["web_app_data"])
 def handle_web_app_data(message):
     chat_id = message.chat.id
@@ -119,7 +115,7 @@ def handle_web_app_data(message):
                 reply_markup=get_main_keyboard(),
             )
     except Exception as e:
-        print(f"Ошибка приеме данных WebApp: {e}")
+        print(f"Ошибка приема данных WebApp: {e}")
 
 
 @bot.callback_query_handler(func=lambda call: call.data == "check_sub")
@@ -164,7 +160,6 @@ def about_bot(message):
     )
 
 
-# --- СМЕНА ВАЙБА ---
 @bot.message_handler(func=lambda message: message.text == "🎭 Сменить вайб")
 def change_vibe(message):
     if not check_subscription(message.chat.id):
@@ -288,7 +283,6 @@ def handle_vibe(call):
     bot.answer_callback_query(call.id)
 
 
-# --- ИГРОВАЯ СИСТЕМА ---
 @bot.message_handler(func=lambda message: message.text == "🎰 Мой Баланс")
 def show_balance(message):
     chat_id = message.chat.id
@@ -307,7 +301,8 @@ def show_balance(message):
 @bot.message_handler(func=lambda message: message.text == "🎁 Ежедневный бонус")
 def daily_bonus(message):
     chat_id = message.chat.id
-    if not check_subscription(chat_id):send_sub_request(chat_id)
+    if not check_subscription(chat_id):
+        send_sub_request(chat_id)
         return
 
     current_time = time.time()
@@ -318,7 +313,7 @@ def daily_bonus(message):
         user_balances[chat_id] = user_balances.get(chat_id, 100) + 50
         bot.reply_to(
             message,
-            "🎁 Красава! Держи свои *+50 Респектов*! Приходи завтра за новой порцией.",
+            "🎁 Красава! Держи свои *+50Респектов*! Приходи завтра за новой порцией.", 
             parse_mode="Markdown",
         )
     else:
@@ -394,7 +389,6 @@ def play_dice(message):
     bot.send_message(chat_id, res_text, parse_mode="Markdown")
 
 
-# --- ОБРАБОТКА ТЕКСТОВЫХ СООБЩЕНИЙ ---
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
     chat_id = message.chat.id
@@ -432,14 +426,14 @@ def handle_message(message):
 
     except Exception as e:
         print(f"Ошибка от Groq: {e}")
-        bot.reply_to(message, "Бро, что-то со связью... Попробуй еще раз через пару секунд!")
+        bot.reply_to(
+            message,
+            "Бро, что-то со связью... Попробуй еще раз через пару секунд!",
+        )
 
 
-
-# --- СЕРВЕР ДЛЯ РАЗДАЧИ MINI APP И PING ---
 class HealthCheck(BaseHTTPRequestHandler):
     def do_GET(self):
-        # Если просят главную страницу — отдаем index.html (наш Mini App)
         if self.path == "/" or self.path == "/index.html":
             try:
                 with open("index.html", "rb") as f:
