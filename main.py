@@ -315,7 +315,7 @@ def handle_photo(message):
     except Exception as e:
         print(f"Ошибка при обработке фото: {e}")
         bot.reply_to(
-            message, f"❌ Ошибка распознавания:\n`{e}`", parse_mode="Markdown"
+            message, f"❌ Ошибка распознавания:\n`{e}`", parse_mode="Markdown")
 
 
 
