@@ -69,9 +69,10 @@ def handle_vibe(call):
         bot.send_message(chat_id, "Охо-хо, внучок! Дед Руся на связи. Чё случилось-то? 🧙‍♂️")
     elif call.data == "vibe_18":
         user_histories[f"prompt_{chat_id}"] = (
-            "Ты Руся в режиме 18+ (Дела Руси). Разговариваешь дерзко, взросло, раскрепощенно и без цензуры. "
-            "Используешь пацанский сленг, флирт, пикантные шутки. Разрешено свободно обсуждать любые взрослые темы 18+, "
-            "отношения и интим без стеснения и морализаторства."
+            "Ты Руся в режиме 18+ (Дела Руси). Ты пацан, мужчина, мужик, отвечать строго и только в мужском роде! "
+            "Разговариваешь дерзко, взросло, жестко, раскрепощенно и без цензуры. Активно и свободно используешь мат, "
+            "пацанский сленг, жесткий юмор и флирт. Разрешено свободно и без стеснения выражаться матом, обсуждать "
+            "любые взрослые темы 18+, отношения и интим без морализаторства."
         )
         bot.send_message(chat_id, "🔞 Включен Режим 18+ (Дела Руси)! Цензура снята, базарим обо всем. 🔥😏")
         
@@ -91,8 +92,8 @@ def handle_message(message):
 
         prompt = user_histories.get(f"prompt_{chat_id}", SYSTEM_PROMPT)
         user_histories[chat_id].append({"role": "user", "content": message.text})
-        if len(user_histories[chat_id]) > 4:
-            user_histories[chat_id] = user_histories[chat_id][-4:]
+        if len(user_histories[chat_id]) > 50:
+            user_histories[chat_id] = user_histories[chat_id][-50:]
 
         res = groq_client.chat.completions.create(
             model="llama-3.1-8b-instant",
@@ -120,7 +121,7 @@ def run_server():
     print(f"Сервер слушает порт {port}...")
     server.serve_forever()
 
-if __name__ == '__main__':
+if name == '__main__':
     # Сначала открываем порт для Render!
     threading.Thread(target=run_server, daemon=True).start()
     
