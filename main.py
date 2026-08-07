@@ -1,4 +1,6 @@
 import base64
+from io import BytesIO
+from PIL import Image
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import os
 import threading
@@ -251,7 +253,7 @@ def handle_vibe(call):
     bot.answer_callback_query(call.id)
 
 
-# --- ОБРАБОТКА ФОТОГРАФИЙ (РУСЯ СМОТРИТ НА КАРТИНКУ) ---
+# --- ОБРАБОТКА ФОТОГРАФИЙ (С УМЕНЬШЕНИЕМ И ВЫВОДОМ ОШИБКИ) ---
 @bot.message_handler(content_types=["photo"])
 def handle_photo(message):
     chat_id = message.chat.id
@@ -267,21 +269,26 @@ def handle_photo(message):
     try:
         bot.send_chat_action(chat_id, "typing")
 
-        # Скачиваем картинку
+        # 1. Скачиваем фото
         file_info = bot.get_file(message.photo[-1].file_id)
         downloaded_file = bot.download_file(file_info.file_path)
 
-        # Переводим в base64
-        base64_image = base64.b64encode(downloaded_file).decode("utf-8")
+        # 2. Уменьшаем размер фото, чтобы Groq точно не вылетал
+        img = Image.open(BytesIO(downloaded_file))
+        img.thumbnail((1024, 1024))
+
+        buffered = BytesIO()
+        img.save(buffered, format="JPEG", quality=85)
+        base64_image = base64.b64encode(buffered.getvalue()).decode("utf-8")
 
         prompt = user_histories.get(f"prompt_{chat_id}", SYSTEM_PROMPT)
         user_text = (
             message.caption
             if message.caption
-            else "Чё скажешь по поводу этой картинки, Руся?"
+            else "Опиши подробно, что ты видишь на этой картинке?"
         )
 
-        # Отправляем в Vision-модель Groq
+        # 3. Запрос в Vision-модель Groq
         res = groq_client.chat.completions.create(
             model="llama-3.2-11b-vision-preview",
             messages=[
@@ -308,9 +315,8 @@ def handle_photo(message):
     except Exception as e:
         print(f"Ошибка при обработке фото: {e}")
         bot.reply_to(
-            message,
-            "Бро, что-то у меня глаза замылились, не могу разглядеть эту картинку... Попробуй еще раз!",
-        )
+            message, f"❌ Ошибка распознавания:\n`{e}`", parse_mode="Markdown"
+
 
 
 # --- ОБРАБОТКА ТЕКСТОВЫХ СООБЩЕНИЙ ---
