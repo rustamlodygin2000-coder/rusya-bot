@@ -1,4 +1,5 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
+import json
 import os
 import threading
 import time
@@ -15,6 +16,8 @@ GROQ_API_KEY = os.environ.get(
 )
 
 CHANNEL_USERNAME = "@rusya_ai"
+# URL твоего приложения на Render
+WEBAPP_URL = "https://rusya-bot.onrender.com"
 
 bot = telebot.TeleBot(BOT_TOKEN)
 groq_client = (
@@ -28,13 +31,11 @@ SYSTEM_PROMPT = (
     "Сам всегда отвечаешь В МУЖСКОМ РОДЕ. Отлично понимаешь сленг и эмоциональный контекст."
 )
 
-# Словари для хранения данных
 user_histories = {}
-user_balances = {}  # Хранит респекты пользователей
-daily_rewards = {}  # Хранит время получения ежедневного бонуса
+user_balances = {}
+daily_rewards = {}
 
 
-# --- ПРОВЕРКА ПОДПИСКИ ---
 def check_subscription(user_id):
     try:
         member = bot.get_chat_member(CHANNEL_USERNAME, user_id)
@@ -63,9 +64,16 @@ def send_sub_request(chat_id):
     bot.send_message(chat_id, text, reply_markup=markup)
 
 
-# --- ГЛАВНАЯ КЛАВИАТУРА МЕНЮ ---
+# --- ГЛАВНАЯ КЛАВИАТУРА МЕНЮ (С КНОПКОЙ MINI APP) ---
 def get_main_keyboard():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+
+    # Кнопка открытия Mini App прямо в Telegram!
+    app_button = types.KeyboardButton(
+        "📱 Открыть Руся App 🎮", web_app=types.WebAppInfo(url=WEBAPP_URL)
+    )
+
+    markup.row(app_button)
     markup.row(
         types.KeyboardButton("🎲 Играть в кости"),
         types.KeyboardButton("🎰 Мой Баланс"),
@@ -82,7 +90,6 @@ def get_main_keyboard():
     return markup
 
 
-# --- КОМАНДЫ И КНОПКИ МЕНЮ ---
 @bot.message_handler(commands=["start"])
 def send_welcome(message):
     if not check_subscription(message.chat.id):
@@ -92,9 +99,27 @@ def send_welcome(message):
     user_histories[message.chat.id] = []
     bot.reply_to(
         message,
-        "Здорово! Я Руся на связи. Выбирай вайб, катай в кости или просто пиши!",
+        "Здорово! Я Руся на связи. Заходи в наше Mini App приложение или катай в кости!",
         reply_markup=get_main_keyboard(),
     )
+
+
+# Прием данных из Mini App при закрытии
+@bot.message_handler(content_types=["web_app_data"])
+def handle_web_app_data(message):
+    chat_id = message.chat.id
+    try:
+        data = json.loads(message.web_app_data.data)
+        if "new_balance" in data:
+            user_balances[chat_id] = data["new_balance"]
+            bot.reply_to(
+                message,
+                f"🔥 Красава! Баланс из приложения сохранен! У тебя теперь *{user_balances[chat_id]} Респектов* 🎰",
+                parse_mode="Markdown",
+                reply_markup=get_main_keyboard(),
+            )
+    except Exception as e:
+        print(f"Ошибка приеме данных WebApp: {e}")
 
 
 @bot.callback_query_handler(func=lambda call: call.data == "check_sub")
@@ -133,7 +158,7 @@ def about_bot(message):
         return
     bot.reply_to(
         message,
-        "Я Руся — твой ИИ-бро на базе Llama 3.3 70B! 🔥 Умею базарить на разных вайбах и играть в кости на Респекты!",
+        "Я Руся — твой ИИ-бро на базе Llama 3.3 70B! 🔥 Жми «📱 Открыть Руся App 🎮» и фарми Респекты в нашей игре!",
         parse_mode="Markdown",
         reply_markup=get_main_keyboard(),
     )
@@ -263,7 +288,7 @@ def handle_vibe(call):
     bot.answer_callback_query(call.id)
 
 
-# --- ИГРОВАЯ СИСТЕМА (КОСТИ И РЕСПЕКТЫ) ---
+# --- ИГРОВАЯ СИСТЕМА ---
 @bot.message_handler(func=lambda message: message.text == "🎰 Мой Баланс")
 def show_balance(message):
     chat_id = message.chat.id
@@ -274,7 +299,7 @@ def show_balance(message):
     balance = user_balances.get(chat_id, 100)
     bot.reply_to(
         message,
-        f"💳 Твой баланс: *{balance} Респектов* 🎰\n\nКатай в кости и забирай ежедневный бонус, чтобы поднять авторитет на районе!",
+        f"💳 Твой баланс: *{balance} Респектов* 🎰\n\nФарми их в «📱 Открыть Руся App», играй в кости и забирай ежедневный бонус!",
         parse_mode="Markdown",
     )
 
@@ -282,8 +307,7 @@ def show_balance(message):
 @bot.message_handler(func=lambda message: message.text == "🎁 Ежедневный бонус")
 def daily_bonus(message):
     chat_id = message.chat.id
-    if not check_subscription(chat_id):
-        send_sub_request(chat_id)
+    if not check_subscription(chat_id):send_sub_request(chat_id)
         return
 
     current_time = time.time()
@@ -313,7 +337,9 @@ def show_top(message):
 
     if not user_balances:
         bot.reply_to(
-            message, "Пока никто не играл! Будь первым — жми «🎲 Играть в кости»!")
+            message,
+            "Пока никто не играл! Будь первым — жми «📱 Открыть Руся App» или «🎲 Играть в кости»!",
+        )
         return
 
     sorted_users = sorted(
@@ -340,7 +366,7 @@ def play_dice(message):
     if balance < bet:
         bot.reply_to(
             message,
-            "❌ Брат, у тебя на балансе пусто! Забери «🎁 Ежедневный бонус» или подожди завтра.",
+            "❌ Брат, у тебя на балансе пусто! Забери «🎁 Ежедневный бонус» или накликая в «📱 Открыть Руся App».",
         )
         return
 
@@ -368,7 +394,7 @@ def play_dice(message):
     bot.send_message(chat_id, res_text, parse_mode="Markdown")
 
 
-# --- ОБРАБОТКА ОБЫЧНЫХ ТЕКСТОВЫХ СООБЩЕНИЙ (ИИ ГЕНЕРАЦИЯ) ---
+# --- ОБРАБОТКА ТЕКСТОВЫХ СООБЩЕНИЙ ---
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
     chat_id = message.chat.id
@@ -412,12 +438,25 @@ def handle_message(message):
         )
 
 
-# --- СЕРВЕР ДЛЯ ПОДДЕРЖАНИЯ АКТИВНОСТИ (RENDER) ---
+# --- СЕРВЕР ДЛЯ РАЗДАЧИ MINI APP И PING ---
 class HealthCheck(BaseHTTPRequestHandler):
     def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"OK")
+        # Если просят главную страницу — отдаем index.html (наш Mini App)
+        if self.path == "/" or self.path == "/index.html":
+            try:
+                with open("index.html", "rb") as f:
+                    self.send_response(200)
+                    self.send_header("Content-type", "text/html; charset=utf-8")
+                    self.end_headers()
+                    self.wfile.write(f.read())
+            except Exception as e:
+                self.send_response(500)
+                self.end_headers()
+                self.wfile.write(f"Error loading index.html: {e}".encode())
+        else:
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"OK")
 
 
 def run_server():
@@ -435,5 +474,5 @@ if __name__ == "__main__":
     except Exception:
         pass
 
-    print("Руся AI успешно запущен! Игры и вайбы активны.")
+    print("Руся AI и Mini App успешно запущены!")
     bot.infinity_polling(skip_pending=True)
