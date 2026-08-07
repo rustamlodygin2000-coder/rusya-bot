@@ -1,4 +1,5 @@
 import base64
+import requests
 from io import BytesIO
 from PIL import Image
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -253,10 +254,8 @@ def handle_vibe(call):
     bot.answer_callback_query(call.id)
 
 
-import requests  # На всякий случай проверь, есть ли import requests вверху файла
-
-
-# --- ОБРАБОТКА ФОТОГРАФИЙ (ЧЕРЕЗ БЕСПЛАТНЫЙ OPENROUTER) ---
+  # На всякий случай проверь, есть ли import requests вверху файла
+# --- ОБРАБОТКА ФОТОГРАФИЙ ---
 @bot.message_handler(content_types=["photo"])
 def handle_photo(message):
     chat_id = message.chat.id
@@ -276,7 +275,6 @@ def handle_photo(message):
     try:
         bot.send_chat_action(chat_id, "typing")
 
-        # 1. Скачиваем фото из Telegram
         file_info = bot.get_file(message.photo[-1].file_id)
         downloaded_file = bot.download_file(file_info.file_path)
         base64_image = base64.b64encode(downloaded_file).decode("utf-8")
@@ -288,15 +286,14 @@ def handle_photo(message):
             else "Опиши подробно, что ты видишь на этой картинке?"
         )
 
-        # 2. Отправляем в бесплатную Vision-модель через OpenRouter
         response = requests.post(
             url="https://openrouter.ai/api/v1/chat/completions",
             headers={
-                "Authorization": f"Bearer {openrouter_key}",
+                "Authorization": f"Bearer {openrouter_key.strip()}",
                 "Content-Type": "application/json",
             },
             json={
-                "model": "google/gemini-2.0-flash-lite-001:free",
+                "model": "meta-llama/llama-3.2-11b-vision-instruct:free",
                 "messages": [
                     {"role": "system", "content": prompt},
                     {
@@ -316,8 +313,17 @@ def handle_photo(message):
         )
 
         result = response.json()
-        ans = result["choices"][0]["message"]["content"]
-        bot.reply_to(message, ans, reply_markup=get_main_keyboard())
+
+        if "choices" in result and len(result["choices"]) > 0:
+            ans = result["choices"][0]["message"]["content"]
+            bot.reply_to(message, ans, reply_markup=get_main_keyboard())
+        else:
+            error_msg = result.get("error", {}).get("message", str(result))
+            bot.reply_to(
+                message,
+                f"❌ Ответ от OpenRouter:\n`{error_msg}`",
+                parse_mode="Markdown",
+            )
 
     except Exception as e:
         print(f"Ошибка при обработке фото: {e}")
@@ -326,6 +332,8 @@ def handle_photo(message):
             f"❌ Ошибка распознавания фото:\n`{e}`",
             parse_mode="Markdown",
         )
+
+
 
 
 
