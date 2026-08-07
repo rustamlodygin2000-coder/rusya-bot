@@ -1,10 +1,7 @@
-import base64
-import requests
-from io import BytesIO
-from PIL import Image
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import os
 import threading
+import time
 from groq import Groq
 import telebot
 from telebot import types
@@ -31,7 +28,10 @@ SYSTEM_PROMPT = (
     "Сам всегда отвечаешь В МУЖСКОМ РОДЕ. Отлично понимаешь сленг и эмоциональный контекст."
 )
 
+# Словари для хранения данных
 user_histories = {}
+user_balances = {}  # Хранит респекты пользователей
+daily_rewards = {}  # Хранит время получения ежедневного бонуса
 
 
 # --- ПРОВЕРКА ПОДПИСКИ ---
@@ -42,7 +42,7 @@ def check_subscription(user_id):
             return True
         return False
     except Exception as e:
-        print(f"Ошибка подписки: {e}")
+        print(f"Ошибка проверки подписки: {e}")
         return True
 
 
@@ -63,8 +63,17 @@ def send_sub_request(chat_id):
     bot.send_message(chat_id, text, reply_markup=markup)
 
 
+# --- ГЛАВНАЯ КЛАВИАТУРА МЕНЮ ---
 def get_main_keyboard():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row(
+        types.KeyboardButton("🎲 Играть в кости"),
+        types.KeyboardButton("🎰 Мой Баланс"),
+    )
+    markup.row(
+        types.KeyboardButton("🎁 Ежедневный бонус"),
+        types.KeyboardButton("🏆 Топ Авторитетов"),
+    )
     markup.row(
         types.KeyboardButton("🧹 Очистить память"),
         types.KeyboardButton("🎭 Сменить вайб"),
@@ -73,7 +82,7 @@ def get_main_keyboard():
     return markup
 
 
-# --- КОМАНДЫ И МЕНЮ ---
+# --- КОМАНДЫ И КНОПКИ МЕНЮ ---
 @bot.message_handler(commands=["start"])
 def send_welcome(message):
     if not check_subscription(message.chat.id):
@@ -83,7 +92,7 @@ def send_welcome(message):
     user_histories[message.chat.id] = []
     bot.reply_to(
         message,
-        "Здорово! Я Руся на связи. Выбирай вайб, закидывай картинки или просто пиши!",
+        "Здорово! Я Руся на связи. Выбирай вайб, катай в кости или просто пиши!",
         reply_markup=get_main_keyboard(),
     )
 
@@ -124,7 +133,7 @@ def about_bot(message):
         return
     bot.reply_to(
         message,
-        "Я Руся — твой ИИ-бро на базе Llama 3.3 70B! 🔥 Умею базарить на разных вайбах и даже ВИДЕТЬ ТВОИ ФОТКИ! Присылай картинку — перетрем!",
+        "Я Руся — твой ИИ-бро на базе Llama 3.3 70B! 🔥 Умею базарить на разных вайбах и играть в кости на Респекты!",
         parse_mode="Markdown",
         reply_markup=get_main_keyboard(),
     )
@@ -254,8 +263,112 @@ def handle_vibe(call):
     bot.answer_callback_query(call.id)
 
 
+# --- ИГРОВАЯ СИСТЕМА (КОСТИ И РЕСПЕКТЫ) ---
+@bot.message_handler(func=lambda message: message.text == "🎰 Мой Баланс")
+def show_balance(message):
+    chat_id = message.chat.id
+    if not check_subscription(chat_id):
+        send_sub_request(chat_id)
+        return
 
-# --- ОБРАБОТКА ТЕКСТОВЫХ СООБЩЕНИЙ ---
+    balance = user_balances.get(chat_id, 100)
+    bot.reply_to(
+        message,
+        f"💳 Твой баланс: *{balance} Респектов* 🎰\n\nКатай в кости и забирай ежедневный бонус, чтобы поднять авторитет на районе!",
+        parse_mode="Markdown",
+    )
+
+
+@bot.message_handler(func=lambda message: message.text == "🎁 Ежедневный бонус")
+def daily_bonus(message):
+    chat_id = message.chat.id
+    if not check_subscription(chat_id):
+        send_sub_request(chat_id)
+        return
+
+    current_time = time.time()
+    last_claim = daily_rewards.get(chat_id, 0)
+
+    if current_time - last_claim >= 86400:
+        daily_rewards[chat_id] = current_time
+        user_balances[chat_id] = user_balances.get(chat_id, 100) + 50
+        bot.reply_to(
+            message,
+            "🎁 Красава! Держи свои *+50 Респектов*! Приходи завтра за новой порцией.",
+            parse_mode="Markdown",
+        )
+    else:
+        time_left = int((86400 - (current_time - last_claim)) // 3600)
+        bot.reply_to(
+            message,
+            f"⏳ Рано еще, свояк! Бонус будет доступен через {time_left} ч.",
+        )
+
+
+@bot.message_handler(func=lambda message: message.text == "🏆 Топ Авторитетов")
+def show_top(message):
+    if not check_subscription(message.chat.id):
+        send_sub_request(message.chat.id)
+        return
+
+    if not user_balances:
+        bot.reply_to(
+            message, "Пока никто не играл! Будь первым — жми «🎲 Играть в кости»!")
+        return
+
+    sorted_users = sorted(
+        user_balances.items(), key=lambda x: x[1], reverse=True
+    )[:5]
+
+    top_text = "🏆 *ТОП-5 АВТОРИТЕТОВ РАЙОНА:* 🏆\n\n"
+    for i, (u_id, bal) in enumerate(sorted_users, 1):
+        top_text += f"{i}. Игрок `{u_id}` — *{bal} Респектов*\n"
+
+    bot.reply_to(message, top_text, parse_mode="Markdown")
+
+
+@bot.message_handler(func=lambda message: message.text == "🎲 Играть в кости")
+def play_dice(message):
+    chat_id = message.chat.id
+    if not check_subscription(chat_id):
+        send_sub_request(chat_id)
+        return
+
+    balance = user_balances.get(chat_id, 100)
+    bet = 50
+
+    if balance < bet:
+        bot.reply_to(
+            message,
+            "❌ Брат, у тебя на балансе пусто! Забери «🎁 Ежедневный бонус» или подожди завтра.",
+        )
+        return
+
+    bot.send_message(chat_id, "Твой бросок! 🎲")
+    user_dice = bot.send_dice(chat_id)
+    user_score = user_dice.dice.value
+
+    time.sleep(2.5)
+
+    bot.send_message(chat_id, "Бросает Руся! 🎲")
+    bot_dice = bot.send_dice(chat_id)
+    bot_score = bot_dice.dice.value
+
+    time.sleep(2.5)
+
+    if user_score > bot_score:
+        user_balances[chat_id] = balance + bet
+        res_text = f"🎉 *Ты победил!* ({user_score} против {bot_score})\nЗабираешь *+{bet} Респектов*! Твой баланс: {user_balances[chat_id]}"
+    elif user_score < bot_score:
+        user_balances[chat_id] = balance - bet
+        res_text = f"Увы, Руся забрал победу! 😎 ({bot_score} против {user_score})\nТеряешь *-{bet} Респектов*. Твой баланс: {user_balances[chat_id]}"
+    else:
+        res_text = f"🤝 *Ничья!* У обоих выпало {user_score}. Респекты остаются при тебе."
+
+    bot.send_message(chat_id, res_text, parse_mode="Markdown")
+
+
+# --- ОБРАБОТКА ОБЫЧНЫХ ТЕКСТОВЫХ СООБЩЕНИЙ (ИИ ГЕНЕРАЦИЯ) ---
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
     chat_id = message.chat.id
@@ -265,7 +378,7 @@ def handle_message(message):
         return
 
     if not groq_client:
-        bot.reply_to(message, "Ошибка: Не задан GROQ_API_KEY в коде!")
+        bot.reply_to(message, "Ошибка: Не задан GROQ_API_KEY!")
         return
 
     try:
@@ -292,13 +405,14 @@ def handle_message(message):
         bot.reply_to(message, ans, reply_markup=get_main_keyboard())
 
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Ошибка от Groq: {e}")
         bot.reply_to(
-            message, f"Ошибка от Groq API:\n`{e}`", parse_mode="Markdown"
+            message,
+            "Бро, что-то со связью... Попробуй еще раз через пару секунд!",
         )
 
 
-# --- СЕРВЕР ДЛЯ ПОДДЕРЖАНИЯ АКТИВНОСТИ ---
+# --- СЕРВЕР ДЛЯ ПОДДЕРЖАНИЯ АКТИВНОСТИ (RENDER) ---
 class HealthCheck(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -321,5 +435,5 @@ if __name__ == "__main__":
     except Exception:
         pass
 
-    print("Руся запущен со всеми вайбами и зрением!")
+    print("Руся AI успешно запущен! Игры и вайбы активны.")
     bot.infinity_polling(skip_pending=True)
