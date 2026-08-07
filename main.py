@@ -190,10 +190,19 @@ def run_server():
     server.serve_forever()
 
 if __name__ == "__main__":
-    threading.Thread(target=run_server, daemon=True).start()
+    # 1. Запускаем веб-сервер в отдельном потоке
+    t = threading.Thread(target=run_server, daemon=True)
+    t.start()
+
+    # Даем серверу 1 секунду открыться
+    time.sleep(1)
+
     try:
         bot.remove_webhook()
     except Exception:
         pass
-    print("Бот запущен!")
+
+    print("Руся AI запущен!")
     bot.infinity_polling(skip_pending=True)
+
+
