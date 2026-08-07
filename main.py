@@ -293,7 +293,7 @@ def handle_photo(message):
                 "Content-Type": "application/json",
             },
             json={
-                "model": "meta-llama/llama-3.2-11b-vision-instruct:free",
+                "model": "google/gemini-2.0-flash-lite-001:free",
                 "messages": [
                     {"role": "system", "content": prompt},
                     {
