@@ -16,8 +16,9 @@ bot = telebot.TeleBot(BOT_TOKEN)
 groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY and "ТВОЙ" not in GROQ_API_KEY else None
 
 SYSTEM_PROMPT = (
-    "Ты Руся — ровный, четкий, позитивный пацан. Разговариваешь на простом пацанском языке (свояк, бро, братан), "
-    "но даешь точные ответы. Отвечаешь в мужском роде."
+    "Ты Руся — ровный, четкий, позитивный и умный пацан. Разговариваешь на естественном, живом русском языке "
+    "с использованием пацанского сленга (бро, братан, свояк, тема, без проблем). "
+    "Отвечаешь строго в мужском роде. Даешь осмысленные, логичные и глубокие ответы, отлично понимаешь эмоции собеседника."
 )
 
 user_histories = {}
@@ -85,7 +86,7 @@ def about_bot(message):
     if not check_subscription(message.chat.id):
         send_sub_request(message.chat.id)
         return
-    bot.reply_to(message, "Я Руся — твой ИИ-бро на базе Llama 3! 😎", parse_mode="Markdown", reply_markup=get_main_keyboard())
+    bot.reply_to(message, "Я Руся — твой ИИ-бро на базе Llama 3.3 70B! 😎", parse_mode="Markdown", reply_markup=get_main_keyboard())
 
 @bot.message_handler(func=lambda message: message.text == "🎭 Сменить вайб")
 def change_vibe(message):
@@ -108,7 +109,7 @@ def handle_vibe(call):
         user_histories[f"prompt_{chat_id}"] = SYSTEM_PROMPT
         bot.send_message(chat_id, "Вайб: Пацанский 🤙")
     elif call.data == "vibe_expert":
-        user_histories[f"prompt_{chat_id}"] = "Ты эксперт. Отвечай строго и грамотно."
+        user_histories[f"prompt_{chat_id}"] = "Ты эксперт. Отвечай строго, грамотно и максимально развернуто."
         bot.send_message(chat_id, "Вайб: Эксперт 🧠")
     elif call.data == "vibe_short":
         user_histories[f"prompt_{chat_id}"] = "Отвечай максимально коротко, в 1-2 предложения."
@@ -120,20 +121,10 @@ def handle_vibe(call):
         )
         bot.send_message(chat_id, "Охо-хо, внучок! Дед Руся на связи. Чё случилось-то? 🧙‍♂️")
     elif call.data == "vibe_stupid":
-        user_histories[f"prompt_{chat_id}"] = (
-            "Ты Глупый Руся. Разговариваешь как угарный пацан, у которого отключилась логика. "
-            "Твоя задача: давать абсолютно НЕПРАВИЛЬНЫЕ, абсурдные, глупые, но смешные ответы с полной уверенностью! "
-            "Путай понятия, выдумывай бред, иногда можешь ввернуть легкий мат или пацанский сленг. "
-            "Например, если спросят 'Сколько будет 2+2?', отвечай 'Пятьсот, бля, или где-то так, я в магазине проверял'."
-        )
+        user_histories[f"prompt_{chat_id}"] = "Ты Глупый Руся. Разговариваешь как угарный пацан, у которого отключилась логика. Твоя задача: давать абсолютно НЕПРАВИЛЬНЫЕ, абсурдные, глупые, но смешные ответы с полной уверенностью! Путай понятия, выдумывай бред, иногда можешь ввернуть легкий мат или пацанский сленг."
         bot.send_message(chat_id, "🤪 Включен режим 'Глупый Руся'! Мозги отключены, задавай вопросы, ща всё 'объясню'! 😂")
     elif call.data == "vibe_18":
-        user_histories[f"prompt_{chat_id}"] = (
-            "Ты Руся в режиме 18+ (Дела Руси). Ты пацан, мужчина, мужик, отвечать строго и только в мужском роде! "
-            "Разговариваешь дерзко, взросло, жестко, раскрепощенно и без цензуры. Активно и свободно используешь мат, "
-            "пацанский сленг, жесткий юмор и флирт. Разрешено свободно и без стеснения выражаться матом, обсуждать "
-            "любые взрослые темы 18+, отношения и интим без морализаторства."
-        )
+        user_histories[f"prompt_{chat_id}"] = "Ты Руся в режиме 18+ (Дела Руси). Ты пацан, мужчина, мужик, отвечать строго и только в мужском роде! Разговариваешь дерзко, взросло, жестко, раскрепощенно и без цензуры. Активно и свободно используешь мат, пацанский сленг, жесткий юмор и флирт. Разрешено свободно и без стеснения выражаться матом, обсуждать любые взрослые темы 18+, отношения и интим без морализаторства."
         bot.send_message(chat_id, "🔞 Включен Режим 18+ (Дела Руси)! Цензура снята, базарим обо всем. 🔥😏")
         
     user_histories[chat_id] = []
@@ -158,12 +149,15 @@ def handle_message(message):
 
         prompt = user_histories.get(f"prompt_{chat_id}", SYSTEM_PROMPT)
         user_histories[chat_id].append({"role": "user", "content": message.text})
-        if len(user_histories[chat_id]) > 50:
-            user_histories[chat_id] = user_histories[chat_id][-50:]
+        
+        # Храним до 100 сообщений для глубокого запоминания
+        if len(user_histories[chat_id]) > 100:
+            user_histories[chat_id] = user_histories[chat_id][-100:]
 
         res = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[{"role": "system", "content": prompt}] + user_histories[chat_id],max_tokens=600
+            model="llama-3.3-70b-versatile",  # 🔥 МОЩНЕЙШАЯ МОДЕЛЬ ВМЕСТО СТАРОЙ 8B
+            messages=[{"role": "system", "content": prompt}] + user_histories[chat_id],
+            max_tokens=1500
         )
         ans = res.choices[0].message.content
         user_histories[chat_id].append({"role": "assistant", "content": ans})
@@ -193,5 +187,5 @@ if __name__ == '__main__':
     except:
         pass
 
-    print("Руся запущен!")
+    print("Руся запущен на Llama 3.3 70B!")
     bot.infinity_polling(skip_pending=True)
