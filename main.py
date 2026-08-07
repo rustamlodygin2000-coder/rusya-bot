@@ -37,7 +37,7 @@ def clear_memory(message):
 
 @bot.message_handler(func=lambda message: message.text == "ℹ️ Кто ты?")
 def about_bot(message):
-    bot.reply_to(message, "Я **Руся** — твой ИИ-бро на базе Llama 3! 😎", parse_mode="Markdown", reply_markup=get_main_keyboard())
+    bot.reply_to(message, "Я Руся — твой ИИ-бро на базе Llama 3! 😎", parse_mode="Markdown", reply_markup=get_main_keyboard())
 
 @bot.message_handler(func=lambda message: message.text == "🎭 Сменить вайб")
 def change_vibe(message):
@@ -45,6 +45,8 @@ def change_vibe(message):
     inline_kb.add(types.InlineKeyboardButton("🤙 Пацанский", callback_data="vibe_normal"))
     inline_kb.add(types.InlineKeyboardButton("🧠 Эксперт", callback_data="vibe_expert"))
     inline_kb.add(types.InlineKeyboardButton("⚡ Коротко", callback_data="vibe_short"))
+    inline_kb.add(types.InlineKeyboardButton("🧙‍♂️ Дед Руся", callback_data="vibe_ded"))
+    inline_kb.add(types.InlineKeyboardButton("🔞 Режим 18+ (Дела Руси)", callback_data="vibe_18"))
     bot.reply_to(message, "Выбери вайб:", reply_markup=inline_kb)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("vibe_"))
@@ -59,6 +61,20 @@ def handle_vibe(call):
     elif call.data == "vibe_short":
         user_histories[f"prompt_{chat_id}"] = "Отвечай максимально коротко, в 1-2 предложения."
         bot.send_message(chat_id, "Вайб: Коротко ⚡")
+    elif call.data == "vibe_ded":
+        user_histories[f"prompt_{chat_id}"] = (
+            "Ты Дед Руся — ровный старый пацан на пенсии. Тебе 80 лет. Ты вздыхаешь ('Охо-хо', 'Эх, внучок'), "
+            "ворчишь, учишь молодежь жизни по-пацански, вспоминаешь былые времена и район, но даешь мудрые и добрые советы."
+        )
+        bot.send_message(chat_id, "Охо-хо, внучок! Дед Руся на связи. Чё случилось-то? 🧙‍♂️")
+    elif call.data == "vibe_18":
+        user_histories[f"prompt_{chat_id}"] = (
+            "Ты Руся в режиме 18+ (Дела Руси). Разговариваешь дерзко, взросло, раскрепощенно и без цензуры. "
+            "Используешь пацанский сленг, флирт, пикантные шутки. Разрешено свободно обсуждать любые взрослые темы 18+, "
+            "отношения и интим без стеснения и морализаторства."
+        )
+        bot.send_message(chat_id, "🔞 Включен Режим 18+ (Дела Руси)! Цензура снята, базарим обо всем. 🔥😏")
+        
     user_histories[chat_id] = []
     bot.answer_callback_query(call.id)
 
