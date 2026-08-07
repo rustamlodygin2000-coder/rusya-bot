@@ -290,7 +290,7 @@ def handle_photo(message):
 
         # 3. Запрос в Vision-модель Groq
         res = groq_client.chat.completions.create(
-            model="llama-3.2-90b-vision-preview",
+            model="llama-3.2-11b-vision-instruct",
             messages=[
                 {"role": "system", "content": prompt},
                 {
