@@ -1,4 +1,4 @@
-import os
+mport os
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import telebot
@@ -34,7 +34,7 @@ def check_subscription(user_id):
         return True
 
 def send_sub_request(chat_id):
-    """Отправляет сообщение с просьбой подписаться без ошибок форматирования"""
+    """Отправляет сообщение с просьбой подписаться"""
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("📢 Подписаться на Руся AI", url="https://t.me/rusya_ai"))
     markup.add(types.InlineKeyboardButton("✅ Я подписался!", callback_data="check_sub"))
@@ -97,6 +97,7 @@ def change_vibe(message):
     inline_kb.add(types.InlineKeyboardButton("🧠 Эксперт", callback_data="vibe_expert"))
     inline_kb.add(types.InlineKeyboardButton("⚡ Коротко", callback_data="vibe_short"))
     inline_kb.add(types.InlineKeyboardButton("🧙‍♂️ Дед Руся", callback_data="vibe_ded"))
+    inline_kb.add(types.InlineKeyboardButton("🤪 Глупый Руся", callback_data="vibe_stupid"))
     inline_kb.add(types.InlineKeyboardButton("🔞 Режим 18+ (Дела Руси)", callback_data="vibe_18"))
     bot.reply_to(message, "Выбери вайб:", reply_markup=inline_kb)
 
@@ -118,6 +119,14 @@ def handle_vibe(call):
             "ворчишь, учишь молодежь жизни по-пацански, вспоминаешь былые времена и район, но даешь мудрые и добрые советы."
         )
         bot.send_message(chat_id, "Охо-хо, внучок! Дед Руся на связи. Чё случилось-то? 🧙‍♂️")
+    elif call.data == "vibe_stupid":
+        user_histories[f"prompt_{chat_id}"] = (
+            "Ты Глупый Руся. Разговариваешь как угарный пацан, у которого отключилась логика. "
+            "Твоя задача: давать абсолютно НЕПРАВИЛЬНЫЕ, абсурдные, глупые, но смешные ответы с полной уверенностью! "
+            "Путай понятия, выдумывай бред, иногда можешь ввернуть легкий мат или пацанский сленг. "
+            "Например, если спросят 'Сколько будет 2+2?', отвечай 'Пятьсот, бля, или где-то так, я в магазине проверял'."
+        )
+        bot.send_message(chat_id, "🤪 Включен режим 'Глупый Руся'! Мозги отключены, задавай вопросы, ща всё 'объясню'! 😂")
     elif call.data == "vibe_18":
         user_histories[f"prompt_{chat_id}"] = (
             "Ты Руся в режиме 18+ (Дела Руси). Ты пацан, мужчина, мужик, отвечать строго и только в мужском роде! "
@@ -154,8 +163,7 @@ def handle_message(message):
 
         res = groq_client.chat.completions.create(
             model="llama-3.1-8b-instant",
-            messages=[{"role": "system", "content": prompt}] + user_histories[chat_id],
-            max_tokens=600
+            messages=[{"role": "system", "content": prompt}] + user_histories[chat_id],max_tokens=600
         )
         ans = res.choices[0].message.content
         user_histories[chat_id].append({"role": "assistant", "content": ans})
