@@ -253,7 +253,10 @@ def handle_vibe(call):
     bot.answer_callback_query(call.id)
 
 
-# --- ОБРАБОТКА ФОТОГРАФИЙ (С УМЕНЬШЕНИЕМ И ВЫВОДОМ ОШИБКИ) ---
+import requests  # На всякий случай проверь, есть ли import requests вверху файла
+
+
+# --- ОБРАБОТКА ФОТОГРАФИЙ (ЧЕРЕЗ БЕСПЛАТНЫЙ OPENROUTER) ---
 @bot.message_handler(content_types=["photo"])
 def handle_photo(message):
     chat_id = message.chat.id
@@ -262,24 +265,21 @@ def handle_photo(message):
         send_sub_request(chat_id)
         return
 
-    if not groq_client:
-        bot.reply_to(message, "Ошибка: Не задан GROQ_API_KEY!")
+    openrouter_key = os.environ.get("OPENROUTER_API_KEY")
+    if not openrouter_key:
+        bot.reply_to(
+            message,
+            "Ошибка: Не задан OPENROUTER_API_KEY в настройках Render!",
+        )
         return
 
     try:
         bot.send_chat_action(chat_id, "typing")
 
-        # 1. Скачиваем фото
+        # 1. Скачиваем фото из Telegram
         file_info = bot.get_file(message.photo[-1].file_id)
         downloaded_file = bot.download_file(file_info.file_path)
-
-        # 2. Уменьшаем размер фото, чтобы Groq точно не вылетал
-        img = Image.open(BytesIO(downloaded_file))
-        img.thumbnail((1024, 1024))
-
-        buffered = BytesIO()
-        img.save(buffered, format="JPEG", quality=85)
-        base64_image = base64.b64encode(buffered.getvalue()).decode("utf-8")
+        base64_image = base64.b64encode(downloaded_file).decode("utf-8")
 
         prompt = user_histories.get(f"prompt_{chat_id}", SYSTEM_PROMPT)
         user_text = (
@@ -288,34 +288,46 @@ def handle_photo(message):
             else "Опиши подробно, что ты видишь на этой картинке?"
         )
 
-        # 3. Запрос в Vision-модель Groq
-        res = groq_client.chat.completions.create(
-            model="llama-3.2-90b-vision-instruct",
-            messages=[
-                {"role": "system", "content": prompt},
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": user_text},
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{base64_image}"
+        # 2. Отправляем в бесплатную Vision-модель через OpenRouter
+        response = requests.post(
+            url="https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {openrouter_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "google/gemini-2.0-flash-lite-001:free",
+                "messages": [
+                    {"role": "system", "content": prompt},
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": user_text},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{base64_image}"
+                                },
                             },
-                        },
-                    ],
-                },
-            ],
-            max_tokens=1000,
+                        ],
+                    },
+                ],
+            },
         )
 
-        ans = res.choices[0].message.content
+        result = response.json()
+        ans = result["choices"][0]["message"]["content"]
         bot.reply_to(message, ans, reply_markup=get_main_keyboard())
 
     except Exception as e:
         print(f"Ошибка при обработке фото: {e}")
         bot.reply_to(
-            message, f"❌ Ошибка распознавания:\n`{e}`", parse_mode="Markdown")
+            message,
+            f"❌ Ошибка распознавания фото:\n`{e}`",
+            parse_mode="Markdown",
+        )
+
+
 
 
 
