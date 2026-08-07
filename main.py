@@ -31,8 +31,6 @@ SYSTEM_PROMPT = (
 )
 
 user_histories = {}
-user_balances = {}
-daily_rewards = {}
 
 
 def check_subscription(user_id):
@@ -66,19 +64,12 @@ def send_sub_request(chat_id):
 def get_main_keyboard():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
+    # Кнопка открытия Шара Судьбы
     app_button = types.KeyboardButton(
-        "📱 Открыть Руся App 🎮", web_app=types.WebAppInfo(url=WEBAPP_URL)
+        "🔮 Шар Судьбы от Руси 🔮", web_app=types.WebAppInfo(url=WEBAPP_URL)
     )
 
     markup.row(app_button)
-    markup.row(
-        types.KeyboardButton("🎲 Играть в кости"),
-        types.KeyboardButton("🎰 Мой Баланс"),
-    )
-    markup.row(
-        types.KeyboardButton("🎁 Ежедневный бонус"),
-        types.KeyboardButton("🏆 Топ Авторитетов"),
-    )
     markup.row(
         types.KeyboardButton("🧹 Очистить память"),
         types.KeyboardButton("🎭 Сменить вайб"),
@@ -96,26 +87,9 @@ def send_welcome(message):
     user_histories[message.chat.id] = []
     bot.reply_to(
         message,
-        "Здорово! Я Руся на связи. Заходи в наше Mini App приложение или катай в кости!",
+        "Здорово! Я Руся на связи. Напиши мне что-нибудь или открывай 🔮 Шар Судьбы!",
         reply_markup=get_main_keyboard(),
     )
-
-
-@bot.message_handler(content_types=["web_app_data"])
-def handle_web_app_data(message):
-    chat_id = message.chat.id
-    try:
-        data = json.loads(message.web_app_data.data)
-        if "new_balance" in data:
-            user_balances[chat_id] = data["new_balance"]
-            bot.reply_to(
-                message,
-                f"🔥 Красава! Баланс из приложения сохранен! У тебя теперь *{user_balances[chat_id]} Респектов* 🎰",
-                parse_mode="Markdown",
-                reply_markup=get_main_keyboard(),
-            )
-    except Exception as e:
-        print(f"Ошибка приема данных WebApp: {e}")
 
 
 @bot.callback_query_handler(func=lambda call: call.data == "check_sub")
@@ -154,12 +128,13 @@ def about_bot(message):
         return
     bot.reply_to(
         message,
-        "Я Руся — твой ИИ-бро на базе Llama 3.3 70B! 🔥 Жми «📱 Открыть Руся App 🎮» и фарми Респекты в нашей игре!",
+        "Я Руся — твой ИИ-бро на базе Llama 3.3 70B! 🔥 Заходи в 🔮 «Шар Судьбы» — узнай предсказание на сегодня!",
         parse_mode="Markdown",
         reply_markup=get_main_keyboard(),
     )
 
 
+# --- СМЕНА ВАЙБА ---
 @bot.message_handler(func=lambda message: message.text == "🎭 Сменить вайб")
 def change_vibe(message):
     if not check_subscription(message.chat.id):
@@ -237,8 +212,7 @@ def handle_vibe(call):
             chat_id,
             "📜 Поэт Руся у микрофона! Задавай вопрос, а я сложу строфу! ✍️",
         )
-    elif vibe == "vibe_stupid":
-        user_histories[f"prompt_{chat_id}"] = (
+    elif vibe == "vibe_stupid":user_histories[f"prompt_{chat_id}"] = (
             "Ты Глупый Руся. Твоя задача: давать абсолютно НЕПРАВИЛЬНЫЕ, абсурдные, глупые, но смешные ответы с полной уверенностью! Путай понятия, выдумывай бред."
         )
         bot.send_message(
@@ -283,112 +257,7 @@ def handle_vibe(call):
     bot.answer_callback_query(call.id)
 
 
-@bot.message_handler(func=lambda message: message.text == "🎰 Мой Баланс")
-def show_balance(message):
-    chat_id = message.chat.id
-    if not check_subscription(chat_id):
-        send_sub_request(chat_id)
-        return
-
-    balance = user_balances.get(chat_id, 100)
-    bot.reply_to(
-        message,
-        f"💳 Твой баланс: *{balance} Респектов* 🎰\n\nФарми их в «📱 Открыть Руся App», играй в кости и забирай ежедневный бонус!",
-        parse_mode="Markdown",
-    )
-
-
-@bot.message_handler(func=lambda message: message.text == "🎁 Ежедневный бонус")
-def daily_bonus(message):
-    chat_id = message.chat.id
-    if not check_subscription(chat_id):
-        send_sub_request(chat_id)
-        return
-
-    current_time = time.time()
-    last_claim = daily_rewards.get(chat_id, 0)
-
-    if current_time - last_claim >= 86400:
-        daily_rewards[chat_id] = current_time
-        user_balances[chat_id] = user_balances.get(chat_id, 100) + 50
-        bot.reply_to(
-            message,
-            "🎁 Красава! Держи свои *+50Респектов*! Приходи завтра за новой порцией.", 
-            parse_mode="Markdown",
-        )
-    else:
-        time_left = int((86400 - (current_time - last_claim)) // 3600)
-        bot.reply_to(
-            message,
-            f"⏳ Рано еще, свояк! Бонус будет доступен через {time_left} ч.",
-        )
-
-
-@bot.message_handler(func=lambda message: message.text == "🏆 Топ Авторитетов")
-def show_top(message):
-    if not check_subscription(message.chat.id):
-        send_sub_request(message.chat.id)
-        return
-
-    if not user_balances:
-        bot.reply_to(
-            message,
-            "Пока никто не играл! Будь первым — жми «📱 Открыть Руся App» или «🎲 Играть в кости»!",
-        )
-        return
-
-    sorted_users = sorted(
-        user_balances.items(), key=lambda x: x[1], reverse=True
-    )[:5]
-
-    top_text = "🏆 *ТОП-5 АВТОРИТЕТОВ РАЙОНА:* 🏆\n\n"
-    for i, (u_id, bal) in enumerate(sorted_users, 1):
-        top_text += f"{i}. Игрок `{u_id}` — *{bal} Респектов*\n"
-
-    bot.reply_to(message, top_text, parse_mode="Markdown")
-
-
-@bot.message_handler(func=lambda message: message.text == "🎲 Играть в кости")
-def play_dice(message):
-    chat_id = message.chat.id
-    if not check_subscription(chat_id):
-        send_sub_request(chat_id)
-        return
-
-    balance = user_balances.get(chat_id, 100)
-    bet = 50
-
-    if balance < bet:
-        bot.reply_to(
-            message,
-            "❌ Брат, у тебя на балансе пусто! Забери «🎁 Ежедневный бонус» или накликая в «📱 Открыть Руся App».",
-        )
-        return
-
-    bot.send_message(chat_id, "Твой бросок! 🎲")
-    user_dice = bot.send_dice(chat_id)
-    user_score = user_dice.dice.value
-
-    time.sleep(2.5)
-
-    bot.send_message(chat_id, "Бросает Руся! 🎲")
-    bot_dice = bot.send_dice(chat_id)
-    bot_score = bot_dice.dice.value
-
-    time.sleep(2.5)
-
-    if user_score > bot_score:
-        user_balances[chat_id] = balance + bet
-        res_text = f"🎉 *Ты победил!* ({user_score} против {bot_score})\nЗабираешь *+{bet} Респектов*! Твой баланс: {user_balances[chat_id]}"
-    elif user_score < bot_score:
-        user_balances[chat_id] = balance - bet
-        res_text = f"Увы, Руся забрал победу! 😎 ({bot_score} против {user_score})\nТеряешь *-{bet} Респектов*. Твой баланс: {user_balances[chat_id]}"
-    else:
-        res_text = f"🤝 *Ничья!* У обоих выпало {user_score}. Респекты остаются при тебе."
-
-    bot.send_message(chat_id, res_text, parse_mode="Markdown")
-
-
+# --- ОБРАБОТКА ТЕКСТОВЫХ СООБЩЕНИЙ ---
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
     chat_id = message.chat.id
@@ -466,5 +335,5 @@ if __name__ == "__main__":
     except Exception:
         pass
 
-    print("Руся AI и Mini App успешно запущены!")
+    print("Руся AI и Mini App запущены!")
     bot.infinity_polling(skip_pending=True)
