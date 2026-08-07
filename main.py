@@ -99,7 +99,7 @@ def change_vibe(message):
     inline_kb.add(types.InlineKeyboardButton("⚡ Коротко", callback_data="vibe_short"))
     inline_kb.add(types.InlineKeyboardButton("🧙‍♂️ Дед Руся", callback_data="vibe_ded"))
     inline_kb.add(types.InlineKeyboardButton("🤪 Глупый Руся", callback_data="vibe_stupid"))
-    inline_kb.add(types.InlineKeyboardButton("🔞 Режим 18+ (Дела Руси)", callback_data="vibe_18"))
+    inline_kb.add(types.InlineKeyboardButton("🔞 Режим 18+", callback_data="vibe_18"))
     bot.reply_to(message, "Выбери вайб:", reply_markup=inline_kb)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("vibe_"))
@@ -124,8 +124,8 @@ def handle_vibe(call):
         user_histories[f"prompt_{chat_id}"] = "Ты Глупый Руся. Разговариваешь как угарный пацан, у которого отключилась логика. Твоя задача: давать абсолютно НЕПРАВИЛЬНЫЕ, абсурдные, глупые, но смешные ответы с полной уверенностью! Путай понятия, выдумывай бред, иногда можешь ввернуть легкий мат или пацанский сленг."
         bot.send_message(chat_id, "🤪 Включен режим 'Глупый Руся'! Мозги отключены, задавай вопросы, ща всё 'объясню'! 😂")
     elif call.data == "vibe_18":
-        user_histories[f"prompt_{chat_id}"] = "Ты Руся в режиме 18+ (Дела Руси). Ты пацан, мужчина, мужик, отвечать строго и только в мужском роде! Разговариваешь дерзко, взросло, жестко, раскрепощенно и без цензуры. Активно и свободно используешь мат, пацанский сленг, жесткий юмор и флирт. Разрешено свободно и без стеснения выражаться матом, обсуждать любые взрослые темы 18+, отношения и интим без морализаторства."
-        bot.send_message(chat_id, "🔞 Включен Режим 18+ (Дела Руси)! Цензура снята, базарим обо всем. 🔥😏")
+        user_histories[f"prompt_{chat_id}"] = "Ты Руся в режиме 18+ (Дела Руси). Ты пацан, мужчина, мужик, отвечать строго и только в мужском роде! Разговариваешь дерзко, взросло, жестко, раскрепощенно и без цензуры. Активно и свободно используешь мат, пацанский сленг, жесткий юмор и флирт. Разрешено свободно и без стеснения выражаться матом, обсуждать любые взрослые темы 18+, отношения и интим без морализаторств."
+        bot.send_message(chat_id, "🔞 Включен Режим 18+! Цензура снята, базарим обо всем. 🔥😏")
         
     user_histories[chat_id] = []
     bot.answer_callback_query(call.id)
